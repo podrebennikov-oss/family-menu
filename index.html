@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Семейное меню</title>
+<style>
+  :root{
+    --bg:#faf7f2; --card:#ffffff; --ink:#2d2a26; --muted:#8a8378;
+    --accent:#e07a3f; --accent2:#5a8f5a; --ring:#e8e2d8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink);min-height:100vh}
+  .wrap{max-width:520px;margin:0 auto;padding:20px 16px 40px}
+  header{text-align:center;padding:18px 0 6px}
+  header h1{font-size:1.35rem;letter-spacing:.3px}
+  header p{color:var(--muted);font-size:.85rem;margin-top:4px}
+  .screen{display:none;animation:fade .25s ease}
+  .screen.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+  .steps{display:flex;justify-content:center;gap:6px;margin:14px 0 18px}
+  .steps span{width:34px;height:5px;border-radius:3px;background:var(--ring)}
+  .steps span.done{background:var(--accent)}
+  h2{font-size:1.1rem;margin:6px 0 14px;text-align:center}
+  .sub{text-align:center;color:var(--muted);font-size:.85rem;margin:-8px 0 14px}
+
+  .person-list{display:flex;flex-direction:column;gap:12px}
+  .person{display:flex;align-items:center;gap:14px;background:var(--card);border:2px solid var(--ring);border-radius:16px;padding:14px 16px;cursor:pointer;transition:.15s}
+  .person:active{transform:scale(.98)}
+  .person .ava{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.6rem;background:#f3ede3}
+  .person .nm{font-size:1.05rem;font-weight:600}
+  .person .st{font-size:.8rem;color:var(--muted)}
+  .person .info{flex:1;min-width:0}
+  .person .pick{flex-shrink:0;background:var(--accent);color:#fff;border:none;border-radius:10px;padding:10px 14px;font-size:.9rem;font-weight:700;cursor:pointer}
+  .person.done .pick{background:var(--accent2)}
+  .person.done{border-color:var(--accent2)}
+  .person.done .st{color:var(--accent2);font-weight:600}
+
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .tile{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;background:var(--card);border:2px solid var(--ring);transition:.15s}
+  .tile:active{transform:scale(.97)}
+  .tile .ph{width:100%;height:110px;object-fit:cover;display:block;background:#efe9df}
+  .tile .fb{width:100%;height:110px;display:none;align-items:center;justify-content:center;font-size:2.6rem;background:#efe9df}
+  .tile .lb{padding:10px 8px;text-align:center;font-weight:600;font-size:.92rem}
+
+  .cards{display:flex;flex-direction:column;gap:14px}
+  .card{display:flex;background:var(--card);border:2px solid var(--ring);border-radius:16px;overflow:hidden;cursor:pointer;transition:.15s}
+  .card:active{transform:scale(.98)}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,122,63,.25)}
+  .card img{width:128px;height:96px;object-fit:cover;flex-shrink:0;background:#efe9df}
+  .card .fb{width:128px;height:96px;display:none;align-items:center;justify-content:center;font-size:2.2rem;background:#efe9df;flex-shrink:0}
+  .card .tx{padding:12px 14px;display:flex;align-items:center;font-weight:600;font-size:.95rem}
+
+  .btn{display:block;width:100%;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;margin-top:18px}
+  .btn:disabled{background:#d8d2c7;cursor:default}
+  .btn.ghost{background:transparent;color:var(--muted);font-weight:500;padding:10px;margin-top:8px}
+  .btn.green{background:var(--accent2)}
+
+  .sum{background:var(--card);border:2px solid var(--ring);border-radius:16px;padding:16px;margin-bottom:12px}
+  .sum h3{font-size:1rem;margin-bottom:8px}
+  .sum h3 small{color:var(--muted);font-weight:500}
+  .sum div{font-size:.9rem;padding:3px 0;color:#4a463f}
+  .note{text-align:center;color:var(--muted);font-size:.78rem;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>🍽️ Семейное меню</h1>
+    <p>Выбор блюд на день для повара</p>
+  </header>
+
+  <!-- Экран 1: кто выбирает -->
+  <div class="screen active" id="s-home">
+    <h2>Кто выбирает?</h2>
+    <noscript><p class="sub" style="color:#c0392b">Этот просмотрщик не поддерживает интерактив. Откройте файл в браузере (Safari или Chrome).</p></noscript>
+    <div class="person-list" id="personList">
+      <div class="person" data-action="person" data-name="Артур">
+        <div class="ava">👨</div>
+        <div class="info"><div class="nm">Артур</div><div class="st">Ещё не выбрано — нажми</div></div>
+        <button class="pick" type="button">Выбрать</button>
+      </div>
+      <div class="person" data-action="person" data-name="Марго">
+        <div class="ava">👩</div>
+        <div class="info"><div class="nm">Марго</div><div class="st">Ещё не выбрано — нажми</div></div>
+        <button class="pick" type="button">Выбрать</button>
+      </div>
+      <div class="person" data-action="person" data-name="Милана">
+        <div class="ava">👧</div>
+        <div class="info"><div class="nm">Милана</div><div class="st">Ещё не выбрано — нажми</div></div>
+        <button class="pick" type="button">Выбрать</button>
+      </div>
+    </div>
+    <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для повара</button>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · v3</p>
+  </div>
+
+  <!-- Экран 2: настроение -->
+  <div class="screen" id="s-mood">
+    <div class="steps"><span class="done"></span><span></span><span></span><span></span></div>
+    <h2 id="moodTitle">Какое сегодня настроение?</h2>
+    <div class="grid" id="moodGrid"></div>
+    <button class="btn ghost" data-action="go-home">← Назад</button>
+  </div>
+
+  <!-- Экран 3-5: блюда -->
+  <div class="screen" id="s-meal">
+    <div class="steps" id="mealSteps"></div>
+    <h2 id="mealTitle"></h2>
+    <p class="sub" id="mealSub"></p>
+    <div class="cards" id="mealCards"></div>
+    <button class="btn ghost" data-action="meal-back">← Назад</button>
+  </div>
+
+  <!-- Экран 6: итог по человеку -->
+  <div class="screen" id="s-done">
+    <h2 id="doneTitle"></h2>
+    <div class="sum" id="doneSum"></div>
+    <button class="btn" data-action="go-home">Готово ✓</button>
+    <button class="btn ghost" data-action="redo">Выбрать заново</button>
+  </div>
+</div>
+
+<script>
+const IMG = f => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(f) + '?width=640';
+
+const MOODS = [
+  {id:'meat',  name:'Мясное',    emoji:'🥩', img:'Grilled Chicken Breasts (28905381261).jpg'},
+  {id:'fish',  name:'Рыбное',    emoji:'🐟', img:'Uha 013.jpg'},
+  {id:'vegan', name:'Веганское', emoji:'🥦', img:'Ratatouille.jpg'},
+  {id:'light', name:'Лёгкое',    emoji:'🥗', img:'Fruit salad.JPG'}
+];
+
+const MENU = {
+  meat: {
+    breakfast: [
+      {n:'Омлет с овощами и индейкой', f:'Omelette de verduras.jpg', e:'🍳'},
+      {n:'Куриные котлетки паровые', f:'Kotleta.JPG', e:'🍗'},
+      {n:'Сэндвич с куриной грудкой', f:'Grilled Chicken Sandwich at Wendys.jpg', e:'🥪'}
+    ],
+    lunch: [
+      {n:'Борщ с говядиной', f:'Borscht Clouded with Smetana.JPG', e:'🍲'},
+      {n:'Плов с курицей', f:'Plov.jpg', e:'🍛'},
+      {n:'Гуляш из говядины с гречкой', f:'01 Hungarian Goulash in bread pot, Polish food.jpg', e:'🥘'}
+    ],
+    dinner: [
+      {n:'Куриная грудка гриль с овощами', f:'Grilled Chicken Breasts (28905381261).jpg', e:'🍗'},
+      {n:'Тефтели на пару с рисом', f:'Tefteli.jpg', e:'🍚'},
+      {n:'Запечённая индейка с картофелем', f:'RoastTurkey.jpg', e:'🦃'}
+    ]
+  },
+  fish: {
+    breakfast: [
+      {n:'Бутерброд с лососем', f:'Salmon Cream Cheese Sandwiches.jpg', e:'🥯'},
+      {n:'Рыбные котлеты паровые', f:'Fish cake.JPG', e:'🐟'},
+      {n:'Омлет с креветками', f:'Egg foo young.JPG', e:'🍳'}
+    ],
+    lunch: [
+      {n:'Уха', f:'Uha 013.jpg', e:'🍲'},
+      {n:'Рыбный суп с треской', f:'Turkish style fish soup.jpg', e:'🥣'},
+      {n:'Треска запечённая с рисом', f:'Bacalhau com natas.jpg', e:'🐟'}
+    ],
+    dinner: [
+      {n:'Судак запечённый с овощами', f:'Perch fish on plate.jpg', e:'🐟'},
+      {n:'Креветки с рисом', f:'Sakura Shrimp Fried Rice.jpg', e:'🍤'},
+      {n:'Кальмары тушёные с овощами', f:'Calamares en su tinta con patatas.jpg', e:'🦑'}
+    ]
+  },
+  vegan: {
+    breakfast: [
+      {n:'Овсяная каша с ягодами', f:'Oatmeal, blueberries and almond milk.jpg', e:'🥣'},
+      {n:'Гречневая каша с грибами', f:'Гречневая каша.jpg', e:'🍄'},
+      {n:'Смузи-боул с фруктами', f:'Acai bowl (43779425762).jpg', e:'🫐'}
+    ],
+    lunch: [
+      {n:'Чечевичный суп', f:'Catalan lentil soup.JPG', e:'🍲'},
+      {n:'Овощное рагу', f:'Ratatouille.jpg', e:'🍆'},
+      {n:'Боул с нутом и овощами', f:'Healthy Gnocchi Buddha Bowl.jpg', e:'🥗'}
+    ],
+    dinner: [
+      {n:'Тофу с овощами', f:'2016-12-15 Tofu dish at a restaurant in Tianshui, Gansu.jpg', e:'🥢'},
+      {n:'Овощное карри с рисом', f:'Vegetarian Curry.jpeg', e:'🍛'},
+      {n:'Киноа с запечёнными овощами', f:'Quinoa cuit.JPG', e:'🌾'}
+    ]
+  },
+  light: {
+    breakfast: [
+      {n:'Творог с мёдом и ягодами', f:'Tvórog.jpg', e:'🍯'},
+      {n:'Йогурт с фруктами', f:'Frugurt, yoghurt made with fruits.JPG', e:'🥛'},
+      {n:'Фруктовый салат', f:'Fruit salad.JPG', e:'🍓'}
+    ],
+    lunch: [
+      {n:'Куриный бульон с яйцом', f:'Broth hg.jpg', e:'🍜'},
+      {n:'Окрошка', f:'Kefir-okroshka.jpg', e:'🥒'},
+      {n:'Салат с куриной грудкой', f:'Chicken Caesar salad at the office.jpg', e:'🥗'}
+    ],
+    dinner: [
+      {n:'Овощной суп-пюре', f:'Pumpkin soup at Pizzeria Ristorante "O Sole Mio", Mielec, Poland.jpg', e:'🎃'},
+      {n:'Салат с креветками', f:'Grilled shrimp salad.jpg', e:'🍤'},
+      {n:'Овощной салат', f:'Vegetable-Salad.JPG', e:'🥗'}
+    ]
+  }
+};
+
+const PEOPLE = [
+  {name:'Артур', ava:'👨'},
+  {name:'Марго', ava:'👩'},
+  {name:'Милана', ava:'👧'}
+];
+const MEALS = [
+  {id:'breakfast', title:'Завтрак', emoji:'🌅'},
+  {id:'lunch', title:'Обед', emoji:'☀️'},
+  {id:'dinner', title:'Ужин', emoji:'🌙'}
+];
+const MOOD_NAME = Object.fromEntries(MOODS.map(m=>[m.id,m.name]));
+
+let selections = {};   // name -> {mood, breakfast, lunch, dinner}
+let cur = null;        // текущий человек
+let curMealIdx = 0;
+
+function go(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  if(id==='s-home') renderHome();
+  window.scrollTo(0,0);
+}
+
+function imgTag(file, emoji, cls){
+  return `<img class="${cls||'ph'}" src="${IMG(file)}" loading="lazy" alt="">
+    <div class="fb">${emoji}</div>`;
+}
+
+function wireImages(root){
+  root.querySelectorAll('img').forEach(img=>{
+    if(img.dataset.wired) return;
+    img.dataset.wired = '1';
+    img.addEventListener('error', ()=>{
+      img.style.display='none';
+      const fb = img.nextElementSibling;
+      if(fb) fb.style.display='flex';
+    });
+    if(img.complete && img.naturalWidth===0 && img.src){
+      img.style.display='none';
+      const fb = img.nextElementSibling;
+      if(fb) fb.style.display='flex';
+    }
+  });
+}
+
+function renderHome(){
+  const list = document.getElementById('personList');
+  list.innerHTML = PEOPLE.map(p=>{
+    const s = selections[p.name];
+    const st = s ? `✓ ${MOOD_NAME[s.mood]}: ${s.breakfast.n}, ${s.lunch.n}, ${s.dinner.n}` : 'Ещё не выбрано — нажми';
+    return `<div class="person ${s?'done':''}" data-action="person" data-name="${p.name}">
+      <div class="ava">${p.ava}</div>
+      <div class="info"><div class="nm">${p.name}</div><div class="st">${st}</div></div>
+      <button class="pick" type="button">${s?'Изменить':'Выбрать'}</button>
+    </div>`;
+  }).join('');
+  document.getElementById('btnDownload').disabled = Object.keys(selections).length===0;
+}
+
+function startPerson(name){
+  cur = name;
+  document.getElementById('moodTitle').textContent = `${name}, какое сегодня настроение?`;
+  const g = document.getElementById('moodGrid');
+  g.innerHTML = MOODS.map(m=>`
+    <div class="tile" data-action="mood" data-mood="${m.id}">
+      ${imgTag(m.img, m.emoji)}
+      <div class="lb">${m.emoji} ${m.name}</div>
+    </div>`).join('');
+  wireImages(g);
+  go('s-mood');
+}
+
+function pickMood(moodId){
+  selections[cur] = {mood: moodId};
+  curMealIdx = 0;
+  showMeal();
+}
+
+function showMeal(){
+  const meal = MEALS[curMealIdx];
+  const mood = selections[cur].mood;
+  document.getElementById('mealSteps').innerHTML =
+    Array.from({length:4},(_,i)=>`<span class="${i<=curMealIdx+1?'done':''}"></span>`).join('');
+  document.getElementById('mealTitle').textContent = `${meal.emoji} ${meal.title}`;
+  document.getElementById('mealSub').textContent = `${cur} · ${MOOD_NAME[mood]} настроение`;
+  const cardsEl = document.getElementById('mealCards');
+  cardsEl.innerHTML = MENU[mood][meal.id].map((d,i)=>`
+    <div class="card" data-action="dish" data-i="${i}">
+      ${imgTag(d.f, d.e)}
+      <div class="tx">${d.n}</div>
+    </div>`).join('');
+  wireImages(cardsEl);
+  go('s-meal');
+}
+
+function pickDish(i){
+  const meal = MEALS[curMealIdx];
+  const mood = selections[cur].mood;
+  selections[cur][meal.id] = MENU[mood][meal.id][i];
+  if(curMealIdx < 2){ curMealIdx++; showMeal(); }
+  else finishPerson();
+}
+
+function mealBack(){
+  if(curMealIdx>0){ curMealIdx--; showMeal(); }
+  else go('s-mood');
+}
+
+function finishPerson(){
+  const s = selections[cur];
+  document.getElementById('doneTitle').textContent = `${cur}, отличный выбор! 🎉`;
+  document.getElementById('doneSum').innerHTML = `
+    <h3>${cur} <small>· ${MOOD_NAME[s.mood]} настроение</small></h3>
+    <div>🌅 Завтрак: <b>${s.breakfast.n}</b></div>
+    <div>☀️ Обед: <b>${s.lunch.n}</b></div>
+    <div>🌙 Ужин: <b>${s.dinner.n}</b></div>`;
+  go('s-done');
+}
+
+function redo(){
+  delete selections[cur];
+  startPerson(cur);
+}
+
+function downloadFile(){
+  const d = new Date();
+  const ds = d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+  let txt = `ЗАКАЗ ДЛЯ ПОВАРА — ${ds}\n`;
+  txt += '='.repeat(40) + '\n\n';
+  for(const p of PEOPLE){
+    const s = selections[p.name];
+    if(!s) continue;
+    txt += `${p.name} (${MOOD_NAME[s.mood].toLowerCase()} настроение):\n`;
+    txt += `  • Завтрак: ${s.breakfast.n}\n`;
+    txt += `  • Обед:    ${s.lunch.n}\n`;
+    txt += `  • Ужин:    ${s.dinner.n}\n\n`;
+  }
+  txt += 'Все блюда — не более 10 г жира на 100 г.\n';
+  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `menu_${d.toISOString().slice(0,10)}.txt`;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+document.addEventListener('click', function(ev){
+  const el = ev.target.closest('[data-action]');
+  if(!el) return;
+  const a = el.dataset.action;
+  if(a==='person') startPerson(el.dataset.name);
+  else if(a==='mood') pickMood(el.dataset.mood);
+  else if(a==='dish') pickDish(parseInt(el.dataset.i,10));
+  else if(a==='go-home') go('s-home');
+  else if(a==='meal-back') mealBack();
+  else if(a==='redo') redo();
+  else if(a==='download') downloadFile();
+}, false);
+
+renderHome();
+</script>
+</body>
+</html>

@@ -67,12 +67,13 @@
 <div class="wrap">
   <header>
     <h1>🍽️ Семейное меню</h1>
-    <p>Выбор блюд на день для повара</p>
+    <p>Выбор блюд на 2 дня для повара</p>
   </header>
 
   <!-- Экран 1: кто выбирает -->
   <div class="screen active" id="s-home">
     <h2>Кто выбирает?</h2>
+    <p class="sub" id="chosenInfo" style="display:none"></p>
     <noscript><p class="sub" style="color:#c0392b">Этот просмотрщик не поддерживает интерактив. Откройте файл в браузере (Safari или Chrome).</p></noscript>
     <div class="person-list" id="personList">
       <div class="person" data-action="person" data-name="Артур">
@@ -92,7 +93,8 @@
       </div>
     </div>
     <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для повара</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · v3</p>
+    <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · v4</p>
   </div>
 
   <!-- Экран 2: настроение -->
@@ -122,82 +124,82 @@
 </div>
 
 <script>
-const IMG = f => 'https://commons.wikimedia.org/wiki/Special:FilePath/' + encodeURIComponent(f) + '?width=640';
+const IMG = f => 'img/' + f;
 
 const MOODS = [
-  {id:'meat',  name:'Мясное',    emoji:'🥩', img:'Grilled Chicken Breasts (28905381261).jpg'},
-  {id:'fish',  name:'Рыбное',    emoji:'🐟', img:'Uha 013.jpg'},
-  {id:'vegan', name:'Веганское', emoji:'🥦', img:'Ratatouille.jpg'},
-  {id:'light', name:'Лёгкое',    emoji:'🥗', img:'Fruit salad.JPG'}
+  {id:'meat',  name:'Мясное',    emoji:'🥩', img:'grilled-chicken-breasts-28905381261.jpg'},
+  {id:'fish',  name:'Рыбное',    emoji:'🐟', img:'uha-013.jpg'},
+  {id:'vegan', name:'Веганское', emoji:'🥦', img:'ratatouille.jpg'},
+  {id:'light', name:'Лёгкое',    emoji:'🥗', img:'fruit-salad.jpg'}
 ];
 
 const MENU = {
   meat: {
     breakfast: [
-      {n:'Омлет с овощами и индейкой', f:'Omelette de verduras.jpg', e:'🍳'},
-      {n:'Куриные котлетки паровые', f:'Kotleta.JPG', e:'🍗'},
-      {n:'Сэндвич с куриной грудкой', f:'Grilled Chicken Sandwich at Wendys.jpg', e:'🥪'}
+      {n:'Омлет с овощами и индейкой', f:'omelette-de-verduras.jpg', e:'🍳'},
+      {n:'Куриные котлетки паровые', f:'kotleta.jpg', e:'🍗'},
+      {n:'Сэндвич с куриной грудкой', f:'grilled-chicken-sandwich-at-wendys.jpg', e:'🥪'}
     ],
     lunch: [
-      {n:'Борщ с говядиной', f:'Borscht Clouded with Smetana.JPG', e:'🍲'},
-      {n:'Плов с курицей', f:'Plov.jpg', e:'🍛'},
-      {n:'Гуляш из говядины с гречкой', f:'01 Hungarian Goulash in bread pot, Polish food.jpg', e:'🥘'}
+      {n:'Борщ с говядиной', f:'borscht-clouded-with-smetana.jpg', e:'🍲'},
+      {n:'Плов с курицей', f:'plov.jpg', e:'🍛'},
+      {n:'Гуляш из говядины с гречкой', f:'01-hungarian-goulash-in-bread-pot-polish-food.jpg', e:'🥘'}
     ],
     dinner: [
-      {n:'Куриная грудка гриль с овощами', f:'Grilled Chicken Breasts (28905381261).jpg', e:'🍗'},
-      {n:'Тефтели на пару с рисом', f:'Tefteli.jpg', e:'🍚'},
-      {n:'Запечённая индейка с картофелем', f:'RoastTurkey.jpg', e:'🦃'}
+      {n:'Куриная грудка гриль с овощами', f:'grilled-chicken-breasts-28905381261.jpg', e:'🍗'},
+      {n:'Тефтели на пару с рисом', f:'tefteli.jpg', e:'🍚'},
+      {n:'Запечённая индейка с картофелем', f:'roastturkey.jpg', e:'🦃'}
     ]
   },
   fish: {
     breakfast: [
-      {n:'Бутерброд с лососем', f:'Salmon Cream Cheese Sandwiches.jpg', e:'🥯'},
-      {n:'Рыбные котлеты паровые', f:'Fish cake.JPG', e:'🐟'},
-      {n:'Омлет с креветками', f:'Egg foo young.JPG', e:'🍳'}
+      {n:'Бутерброд с лососем', f:'salmon-cream-cheese-sandwiches.jpg', e:'🥯'},
+      {n:'Рыбные котлеты паровые', f:'fish-cake.jpg', e:'🐟'},
+      {n:'Омлет с креветками', f:'egg-foo-young.jpg', e:'🍳'}
     ],
     lunch: [
-      {n:'Уха', f:'Uha 013.jpg', e:'🍲'},
-      {n:'Рыбный суп с треской', f:'Turkish style fish soup.jpg', e:'🥣'},
-      {n:'Треска запечённая с рисом', f:'Bacalhau com natas.jpg', e:'🐟'}
+      {n:'Уха', f:'uha-013.jpg', e:'🍲'},
+      {n:'Рыбный суп с треской', f:'turkish-style-fish-soup.jpg', e:'🥣'},
+      {n:'Треска запечённая с рисом', f:'bacalhau-com-natas.jpg', e:'🐟'}
     ],
     dinner: [
-      {n:'Судак запечённый с овощами', f:'Perch fish on plate.jpg', e:'🐟'},
-      {n:'Креветки с рисом', f:'Sakura Shrimp Fried Rice.jpg', e:'🍤'},
-      {n:'Кальмары тушёные с овощами', f:'Calamares en su tinta con patatas.jpg', e:'🦑'}
+      {n:'Судак запечённый с овощами', f:'perch-fish-on-plate.jpg', e:'🐟'},
+      {n:'Креветки с рисом', f:'sakura-shrimp-fried-rice.jpg', e:'🍤'},
+      {n:'Кальмары тушёные с овощами', f:'calamares-en-su-tinta-con-patatas.jpg', e:'🦑'}
     ]
   },
   vegan: {
     breakfast: [
-      {n:'Овсяная каша с ягодами', f:'Oatmeal, blueberries and almond milk.jpg', e:'🥣'},
-      {n:'Гречневая каша с грибами', f:'Гречневая каша.jpg', e:'🍄'},
-      {n:'Смузи-боул с фруктами', f:'Acai bowl (43779425762).jpg', e:'🫐'}
+      {n:'Овсяная каша с ягодами', f:'oatmeal-blueberries-and-almond-milk.jpg', e:'🥣'},
+      {n:'Гречневая каша с грибами', f:'grechnevaya-kasha.jpg', e:'🍄'},
+      {n:'Смузи-боул с фруктами', f:'acai-bowl-43779425762.jpg', e:'🫐'}
     ],
     lunch: [
-      {n:'Чечевичный суп', f:'Catalan lentil soup.JPG', e:'🍲'},
-      {n:'Овощное рагу', f:'Ratatouille.jpg', e:'🍆'},
-      {n:'Боул с нутом и овощами', f:'Healthy Gnocchi Buddha Bowl.jpg', e:'🥗'}
+      {n:'Чечевичный суп', f:'catalan-lentil-soup.jpg', e:'🍲'},
+      {n:'Овощное рагу', f:'ratatouille.jpg', e:'🍆'},
+      {n:'Боул с нутом и овощами', f:'healthy-gnocchi-buddha-bowl.jpg', e:'🥗'}
     ],
     dinner: [
-      {n:'Тофу с овощами', f:'2016-12-15 Tofu dish at a restaurant in Tianshui, Gansu.jpg', e:'🥢'},
-      {n:'Овощное карри с рисом', f:'Vegetarian Curry.jpeg', e:'🍛'},
-      {n:'Киноа с запечёнными овощами', f:'Quinoa cuit.JPG', e:'🌾'}
+      {n:'Тофу с овощами', f:'2016-12-15-tofu-dish-at-a-restaurant-in-tianshui-g.jpg', e:'🥢'},
+      {n:'Овощное карри с рисом', f:'vegetarian-curry.jpg', e:'🍛'},
+      {n:'Киноа с запечёнными овощами', f:'quinoa-cuit.jpg', e:'🌾'}
     ]
   },
   light: {
     breakfast: [
-      {n:'Творог с мёдом и ягодами', f:'Tvórog.jpg', e:'🍯'},
-      {n:'Йогурт с фруктами', f:'Frugurt, yoghurt made with fruits.JPG', e:'🥛'},
-      {n:'Фруктовый салат', f:'Fruit salad.JPG', e:'🍓'}
+      {n:'Творог с мёдом и ягодами', f:'tvorog.jpg', e:'🍯'},
+      {n:'Йогурт с фруктами', f:'frugurt-yoghurt-made-with-fruits.jpg', e:'🥛'},
+      {n:'Фруктовый салат', f:'fruit-salad.jpg', e:'🍓'}
     ],
     lunch: [
-      {n:'Куриный бульон с яйцом', f:'Broth hg.jpg', e:'🍜'},
-      {n:'Окрошка', f:'Kefir-okroshka.jpg', e:'🥒'},
-      {n:'Салат с куриной грудкой', f:'Chicken Caesar salad at the office.jpg', e:'🥗'}
+      {n:'Куриный бульон с яйцом', f:'broth-hg.jpg', e:'🍜'},
+      {n:'Окрошка', f:'kefir-okroshka.jpg', e:'🥒'},
+      {n:'Салат с куриной грудкой', f:'chicken-caesar-salad-at-the-office.jpg', e:'🥗'}
     ],
     dinner: [
-      {n:'Овощной суп-пюре', f:'Pumpkin soup at Pizzeria Ristorante "O Sole Mio", Mielec, Poland.jpg', e:'🎃'},
-      {n:'Салат с креветками', f:'Grilled shrimp salad.jpg', e:'🍤'},
-      {n:'Овощной салат', f:'Vegetable-Salad.JPG', e:'🥗'}
+      {n:'Овощной суп-пюре', f:'pumpkin-soup-at-pizzeria-ristorante-o-sole-mio-mie.jpg', e:'🎃'},
+      {n:'Салат с креветками', f:'grilled-shrimp-salad.jpg', e:'🍤'},
+      {n:'Овощной салат', f:'vegetable-salad.jpg', e:'🥗'}
     ]
   }
 };
@@ -214,9 +216,21 @@ const MEALS = [
 ];
 const MOOD_NAME = Object.fromEntries(MOODS.map(m=>[m.id,m.name]));
 
+const STORE_KEY = 'family-menu-selections';
 let selections = {};   // name -> {mood, breakfast, lunch, dinner}
+let savedAt = null;    // когда сделан первый выбор (действует 2 дня)
 let cur = null;        // текущий человек
 let curMealIdx = 0;
+
+try{
+  const st = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
+  if(st.selections) selections = st.selections;
+  if(st.savedAt) savedAt = st.savedAt;
+}catch(e){}
+
+function persist(){
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({selections, savedAt})); }catch(e){}
+}
 
 function go(id){
   document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
@@ -258,7 +272,17 @@ function renderHome(){
       <button class="pick" type="button">${s?'Изменить':'Выбрать'}</button>
     </div>`;
   }).join('');
-  document.getElementById('btnDownload').disabled = Object.keys(selections).length===0;
+  const count = PEOPLE.filter(p=>selections[p.name]).length;
+  document.getElementById('btnDownload').disabled = count===0;
+  document.getElementById('btnReset').style.display = count ? '' : 'none';
+  const info = document.getElementById('chosenInfo');
+  if(count && savedAt){
+    const from = new Date(savedAt).toLocaleDateString('ru-RU',{day:'numeric',month:'long'});
+    info.textContent = `Выбор от ${from} · действует 2 дня`;
+    info.style.display = '';
+  } else {
+    info.style.display = 'none';
+  }
 }
 
 function startPerson(name){
@@ -312,6 +336,8 @@ function mealBack(){
 
 function finishPerson(){
   const s = selections[cur];
+  if(!savedAt) savedAt = Date.now();
+  persist();
   document.getElementById('doneTitle').textContent = `${cur}, отличный выбор! 🎉`;
   document.getElementById('doneSum').innerHTML = `
     <h3>${cur} <small>· ${MOOD_NAME[s.mood]} настроение</small></h3>
@@ -323,13 +349,36 @@ function finishPerson(){
 
 function redo(){
   delete selections[cur];
+  if(Object.keys(selections).length===0) savedAt = null;
+  persist();
   startPerson(cur);
 }
 
+let resetArmed = null;
+function resetAll(){
+  const btn = document.getElementById('btnReset');
+  if(!resetArmed){
+    btn.textContent = '❗ Точно сбросить всё? Нажми ещё раз';
+    resetArmed = setTimeout(()=>{
+      resetArmed = null;
+      btn.textContent = '🔄 Сбросить выбор (через 2 дня — выбираем заново)';
+    }, 5000);
+    return;
+  }
+  clearTimeout(resetArmed);
+  resetArmed = null;
+  btn.textContent = '🔄 Сбросить выбор (через 2 дня — выбираем заново)';
+  selections = {};
+  savedAt = null;
+  persist();
+  renderHome();
+}
+
 function downloadFile(){
-  const d = new Date();
-  const ds = d.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
-  let txt = `ЗАКАЗ ДЛЯ ПОВАРА — ${ds}\n`;
+  const d = savedAt ? new Date(savedAt) : new Date();
+  const d2 = new Date(d.getTime() + 86400000);
+  const fmt = x => x.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
+  let txt = `ЗАКАЗ ДЛЯ ПОВАРА НА 2 ДНЯ — ${fmt(d)} и ${fmt(d2)}\n`;
   txt += '='.repeat(40) + '\n\n';
   for(const p of PEOPLE){
     const s = selections[p.name];
@@ -339,6 +388,7 @@ function downloadFile(){
     txt += `  • Обед:    ${s.lunch.n}\n`;
     txt += `  • Ужин:    ${s.dinner.n}\n\n`;
   }
+  txt += 'Меню действует 2 дня (готовить на оба дня одинаково).\n';
   txt += 'Все блюда — не более 10 г жира на 100 г.\n';
   const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');
@@ -357,6 +407,7 @@ document.addEventListener('click', function(ev){
   else if(a==='go-home') go('s-home');
   else if(a==='meal-back') mealBack();
   else if(a==='redo') redo();
+  else if(a==='reset') resetAll();
   else if(a==='download') downloadFile();
 }, false);
 

@@ -92,9 +92,9 @@
         <button class="pick" type="button">Выбрать</button>
       </div>
     </div>
-    <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для повара</button>
+    <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для Марины</button>
     <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · v10</p>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · v11</p>
   </div>
 
   <!-- Экран 2: настроение -->
@@ -843,37 +843,125 @@ function resetAll(){
   renderHome();
 }
 
-function downloadFile(){
+function loadScript(src){
+  return new Promise((res, rej)=>{
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = ()=>rej(new Error('не загрузился ' + src));
+    document.head.appendChild(s);
+  });
+}
+
+function bufToBase64(buf){
+  const bytes = new Uint8Array(buf);
+  let bin = '';
+  for(let i = 0; i < bytes.length; i += 0x8000){
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+function loadDish(src){
+  return new Promise(res=>{
+    const im = new Image();
+    im.onload = ()=>{
+      const c = document.createElement('canvas');
+      c.width = 390; c.height = 260;
+      c.getContext('2d').drawImage(im, 0, 0, 390, 260);
+      res(c.toDataURL('image/jpeg', 0.8));
+    };
+    im.onerror = ()=>res(null);
+    im.src = src;
+  });
+}
+
+async function buildMarinaPdf(){
+  if(!window.jspdf) await loadScript('vendor/jspdf.umd.min.js');
+  if(!window.__pdfFont){
+    const buf = await fetch('vendor/Roboto-Regular.ttf').then(r=>r.arrayBuffer());
+    window.__pdfFont = bufToBase64(buf);
+  }
+  const doc = new window.jspdf.jsPDF({unit:'mm', format:'a4'});
+  doc.addFileToVFS('Roboto.ttf', window.__pdfFont);
+  doc.addFont('Roboto.ttf', 'Roboto', 'normal');
+  doc.setFont('Roboto');
+
   const d = savedAt ? new Date(savedAt) : new Date();
   const d2 = new Date(d.getTime() + 86400000);
   const fmt = x => x.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
-  let txt = `ЗАКАЗ ДЛЯ ПОВАРА НА 2 ДНЯ — ${fmt(d)} и ${fmt(d2)}\n`;
-  txt += '='.repeat(40) + '\n\n';
+  const M = 15, W = 210 - M*2;
+  const ink = [45,42,38], mut = [125,118,105], accent = [224,122,63];
+  let y = 18;
+  const ensure = need => { if(y + need > 282){ doc.addPage(); y = 18; } };
+
+  doc.setFontSize(17); doc.setTextColor(...ink);
+  doc.text('Меню для Марины на 2 дня', M, y); y += 7;
+  doc.setFontSize(11); doc.setTextColor(...mut);
+  doc.text(`${fmt(d)} и ${fmt(d2)}`, M, y); y += 2;
+
+  const IMW = 26, IMH = 17.3, ROW = 20;
   for(const p of PEOPLE){
     const s = selections[p.name];
     if(!isDone(s)) continue;
-    txt += `${p.name} (${MOOD_NAME[s.mood].toLowerCase()} настроение):\n`;
-    txt += `  ${fmt(d)}:\n`;
-    txt += `    • Завтрак: ${s.days[0].breakfast.n}\n`;
-    txt += `    • Обед:    ${s.days[0].lunch.n}\n`;
-    txt += `    • Ужин:    ${s.days[0].dinner.n}\n`;
-    txt += `  ${fmt(d2)}:\n`;
-    txt += `    • Завтрак: ${s.days[1].breakfast.n}\n`;
-    txt += `    • Обед:    ${s.days[1].lunch.n}\n`;
-    txt += `    • Ужин:    ${s.days[1].dinner.n}\n\n`;
+    ensure(16 + ROW);
+    y += 11;
+    doc.setFontSize(13.5); doc.setTextColor(...ink);
+    doc.text(`${p.name} — настроение «${MOOD_NAME[s.mood]}»`, M, y);
+    y += 1;
+    for(let day = 0; day < 2; day++){
+      ensure(9 + ROW);
+      y += 7;
+      doc.setFontSize(10); doc.setTextColor(...accent);
+      doc.text(`${day+1}-й день · ${fmt(day ? d2 : d)}`, M, y);
+      y += 3;
+      for(const meal of MEALS){
+        const dish = s.days[day][meal.id];
+        ensure(ROW + 2);
+        const data = await loadDish(IMG(dish.f));
+        if(data) doc.addImage(data, 'JPEG', M, y, IMW, IMH);
+        else { doc.setDrawColor(220); doc.rect(M, y, IMW, IMH); }
+        doc.setFontSize(8.5); doc.setTextColor(...mut);
+        doc.text(meal.title, M + IMW + 5, y + 5);
+        doc.setFontSize(11.5); doc.setTextColor(...ink);
+        doc.text(doc.splitTextToSize(dish.n, W - IMW - 8), M + IMW + 5, y + 10.5);
+        y += ROW;
+      }
+    }
   }
-  txt += 'ПОСТОЯННЫЕ ПОЖЕЛАНИЯ:\n';
-  txt += '  • Порции небольшие — в 2 раза меньше стандартных.\n';
-  txt += '  • Артуру каждый день костный бульон (на говяжьих косточках).\n';
-  txt += '  • Артуру 4 варёных яйца в отдельный контейнер.\n';
-  txt += '  • Скумбрию не готовим (замена — индейка или батат).\n';
-  txt += '  • Салаты — с лимонной заправкой; можно авокадо, шпинат, рукколу.\n\n';
-  txt += 'Все блюда — не более 10 г жира на 100 г.\n';
-  const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = `menu_${d.toISOString().slice(0,10)}.txt`;
-  document.body.appendChild(a); a.click(); a.remove();
+
+  ensure(52);
+  y += 11;
+  doc.setFontSize(12.5); doc.setTextColor(...ink);
+  doc.text('Постоянные пожелания', M, y); y += 6.5;
+  doc.setFontSize(10.5); doc.setTextColor(60,56,50);
+  for(const line of [
+    '• Порции небольшие — в 2 раза меньше стандартных.',
+    '• Артуру каждый день костный бульон (на говяжьих косточках).',
+    '• Артуру 4 варёных яйца в отдельный контейнер.',
+    '• Скумбрию не готовим (замена — индейка или батат).',
+    '• Салаты — с лимонной заправкой; можно авокадо, шпинат, рукколу.',
+    '• Все блюда — не более 10 г жира на 100 г.',
+  ]){ doc.text(line, M, y); y += 5.6; }
+
+  return doc;
+}
+
+let pdfBusy = false;
+async function downloadFile(){
+  if(pdfBusy) return;
+  const btn = document.getElementById('btnDownload');
+  pdfBusy = true;
+  const oldLabel = btn.textContent;
+  btn.textContent = '⏳ Готовлю PDF…';
+  try{
+    const doc = await buildMarinaPdf();
+    const d = savedAt ? new Date(savedAt) : new Date();
+    doc.save(`Меню для Марины ${d.toISOString().slice(0,10)}.pdf`);
+  }catch(e){
+    alert('Не получилось собрать PDF: ' + e.message);
+  }finally{
+    pdfBusy = false;
+    btn.textContent = oldLabel;
+  }
 }
 
 document.addEventListener('click', function(ev){

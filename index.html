@@ -94,7 +94,7 @@
     </div>
     <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для Марины</button>
     <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · v13</p>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · v14</p>
   </div>
 
   <!-- Экран 2: настроение -->
@@ -721,6 +721,7 @@ function renderHome(){
     </div>`;
   }).join('');
   const count = PEOPLE.filter(p=>isDone(selections[p.name])).length;
+  if(count > 0) prewarmPdf();
   document.getElementById('btnDownload').disabled = count===0;
   document.getElementById('btnReset').style.display = count ? '' : 'none';
   const info = document.getElementById('chosenInfo');
@@ -947,6 +948,19 @@ async function buildMarinaPdf(){
   return doc;
 }
 
+let prewarmed = false;
+async function prewarmPdf(){
+  if(prewarmed) return;
+  prewarmed = true;
+  try{
+    if(!window.jspdf) await loadScript('vendor/jspdf.umd.min.js');
+    if(!window.__pdfFont){
+      const buf = await fetch('vendor/Roboto-Regular.ttf').then(r=>r.arrayBuffer());
+      window.__pdfFont = bufToBase64(buf);
+    }
+  }catch(e){ prewarmed = false; }
+}
+
 let pdfBusy = false;
 async function downloadFile(){
   if(pdfBusy) return;
@@ -957,7 +971,27 @@ async function downloadFile(){
   try{
     const doc = await buildMarinaPdf();
     const d = new Date((savedAt ? new Date(savedAt) : new Date()).getTime() + 86400000);
-    doc.save(`Меню для Марины ${d.toISOString().slice(0,10)}.pdf`);
+    const name = `Меню для Марины ${d.toISOString().slice(0,10)}.pdf`;
+    const blob = doc.output('blob');
+    let done = false;
+    // на телефонах — системная шторка «Поделиться» (можно сразу отправить в Telegram)
+    try{
+      const file = new File([blob], name, {type:'application/pdf'});
+      if(navigator.canShare && navigator.canShare({files:[file]})){
+        await navigator.share({files:[file], title:'Меню для Марины'});
+        done = true;
+      }
+    }catch(err){
+      if(err && err.name === 'AbortError') done = true; // пользователь сам закрыл шторку
+    }
+    if(!done){
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 4000);
+    }
   }catch(e){
     alert('Не получилось собрать PDF: ' + e.message);
   }finally{

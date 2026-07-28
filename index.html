@@ -94,7 +94,7 @@
     </div>
     <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для Марины</button>
     <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · v15</p>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · общий выбор на всех телефонах · v16</p>
   </div>
 
   <!-- Экран 2: настроение -->
@@ -661,8 +661,11 @@ const MEALS = [
 const MOOD_NAME = Object.fromEntries(MOODS.map(m=>[m.id,m.name]));
 
 const STORE_KEY = 'family-menu-selections';
-let selections = {};   // name -> {mood, breakfast, lunch, dinner}
+// общее облачное хранилище — все телефоны видят один выбор
+const SYNC_URL = 'https://jsonblob.com/api/jsonBlob/019faa36-b92e-74d3-af28-28c0fd3f8e1b';
+let selections = {};   // name -> {mood, days, active, updatedAt}
 let savedAt = null;    // когда сделан первый выбор (действует 2 дня)
+let resetAt = 0;       // момент последнего сброса — всё, что выбрано раньше, не считается
 let cur = null;        // текущий человек
 let curMealIdx = 0;
 
@@ -670,14 +673,64 @@ try{
   const st = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
   if(st.selections) selections = st.selections;
   if(st.savedAt) savedAt = st.savedAt;
+  if(st.resetAt) resetAt = st.resetAt;
   // миграция: старый формат или исчезнувшее настроение (например, «рыбное») — сбрасываем
   for(const k of Object.keys(selections)){
     const sel = selections[k];
     if(!sel.days || !MENU[sel.mood]){ delete selections[k]; continue; }
     if(!sel.active) sel.active = [0,1];
+    if(!sel.updatedAt) sel.updatedAt = savedAt || Date.now();
   }
   if(Object.keys(selections).length===0) savedAt = null;
 }catch(e){}
+
+function mergeStates(a, b){
+  const mergedResetAt = Math.max(a.resetAt||0, b.resetAt||0);
+  const names = new Set([...Object.keys(a.selections||{}), ...Object.keys(b.selections||{})]);
+  const out = {};
+  for(const n of names){
+    const x = (a.selections||{})[n], y = (b.selections||{})[n];
+    const pick = !x ? y : !y ? x : ((x.updatedAt||0) >= (y.updatedAt||0) ? x : y);
+    if(pick && (pick.updatedAt||0) > mergedResetAt && pick.days && MENU[pick.mood]) out[n] = pick;
+  }
+  const sa = [a.savedAt, b.savedAt].filter(t => t && t > mergedResetAt);
+  return {selections: out, savedAt: sa.length ? Math.min(...sa) : null, resetAt: mergedResetAt};
+}
+
+async function pullSync(){
+  try{
+    const r = await fetch(SYNC_URL, {cache:'no-store'});
+    if(!r.ok) return;
+    const remote = await r.json();
+    if(!remote || typeof remote !== 'object') return;
+    for(const k of Object.keys(remote.selections || {})){
+      const sel = remote.selections[k];
+      if(sel && sel.days && !sel.active) sel.active = [0,1];
+    }
+    const merged = mergeStates({selections, savedAt, resetAt}, remote);
+    selections = merged.selections; savedAt = merged.savedAt; resetAt = merged.resetAt;
+    persist();
+    if(document.getElementById('s-home').classList.contains('active')) renderHome();
+  }catch(e){}
+}
+
+let syncDirty = false;
+function pushSync(){
+  syncDirty = true;
+  try{
+    fetch(SYNC_URL, {method:'PUT', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({selections, savedAt, resetAt, t: Date.now()})})
+      .then(r => { if(r.ok) syncDirty = false; })
+      .catch(()=>{});
+  }catch(e){}
+}
+
+document.addEventListener('visibilitychange', ()=>{ if(!document.hidden) pullSync(); });
+setInterval(()=>{
+  if(document.hidden) return;
+  if(syncDirty) pullSync().then(pushSync);
+  else pullSync();
+}, 30000);
 
 function isDone(s){
   return !!(s && s.days && s.active && s.active.length &&
@@ -685,7 +738,7 @@ function isDone(s){
 }
 
 function persist(){
-  try{ localStorage.setItem(STORE_KEY, JSON.stringify({selections, savedAt})); }catch(e){}
+  try{ localStorage.setItem(STORE_KEY, JSON.stringify({selections, savedAt, resetAt})); }catch(e){}
 }
 
 function go(id){
@@ -844,8 +897,10 @@ function mealBack(){
 
 function finishPerson(){
   const s = selections[cur];
+  s.updatedAt = Date.now();
   if(!savedAt) savedAt = Date.now();
   persist();
+  pullSync().then(pushSync);
   document.getElementById('doneTitle').textContent = `${cur}, отличный выбор! 🎉`;
   let sumHtml = `<h3>${cur} <small>· ${MOOD_NAME[s.mood]} настроение</small></h3>`;
   for(let day = 0; day < 2; day++){
@@ -885,7 +940,9 @@ function resetAll(){
   btn.textContent = '🔄 Сбросить выбор (через 2 дня — выбираем заново)';
   selections = {};
   savedAt = null;
+  resetAt = Date.now();
   persist();
+  pushSync();
   renderHome();
 }
 
@@ -1020,6 +1077,7 @@ async function downloadFile(){
   const oldLabel = btn.textContent;
   btn.textContent = '⏳ Готовлю PDF…';
   try{
+    await pullSync(); // подтянуть свежий выбор со всех телефонов
     const doc = await buildMarinaPdf();
     const d = new Date((savedAt ? new Date(savedAt) : new Date()).getTime() + 86400000);
     const name = `Меню для Марины ${d.toISOString().slice(0,10)}.pdf`;
@@ -1069,6 +1127,7 @@ document.addEventListener('click', function(ev){
 }, false);
 
 renderHome();
+pullSync();
 </script>
 </body>
 </html>

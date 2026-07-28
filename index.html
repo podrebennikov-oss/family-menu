@@ -39,17 +39,17 @@
   .grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
   .tile{position:relative;border-radius:16px;overflow:hidden;cursor:pointer;background:var(--card);border:2px solid var(--ring);transition:.15s}
   .tile:active{transform:scale(.97)}
-  .tile .ph{width:100%;height:110px;object-fit:cover;display:block;background:#efe9df}
-  .tile .fb{width:100%;height:110px;display:none;align-items:center;justify-content:center;font-size:2.6rem;background:#efe9df}
+  .tile .ph{width:100%;height:150px;object-fit:cover;display:block;background:#efe9df}
+  .tile .fb{width:100%;height:150px;display:none;align-items:center;justify-content:center;font-size:2.6rem;background:#efe9df}
   .tile .lb{padding:10px 8px;text-align:center;font-weight:600;font-size:.92rem}
 
   .cards{display:flex;flex-direction:column;gap:14px}
-  .card{display:flex;background:var(--card);border:2px solid var(--ring);border-radius:16px;overflow:hidden;cursor:pointer;transition:.15s}
+  .card{display:flex;flex-direction:column;background:var(--card);border:2px solid var(--ring);border-radius:16px;overflow:hidden;cursor:pointer;transition:.15s}
   .card:active{transform:scale(.98)}
   .card.sel{border-color:var(--accent);box-shadow:0 0 0 2px rgba(224,122,63,.25)}
-  .card img{width:128px;height:96px;object-fit:cover;flex-shrink:0;background:#efe9df}
-  .card .fb{width:128px;height:96px;display:none;align-items:center;justify-content:center;font-size:2.2rem;background:#efe9df;flex-shrink:0}
-  .card .tx{padding:12px 14px;display:flex;align-items:center;font-weight:600;font-size:.95rem}
+  .card img{width:100%;height:190px;object-fit:cover;background:#efe9df}
+  .card .fb{width:100%;height:190px;display:none;align-items:center;justify-content:center;font-size:3rem;background:#efe9df}
+  .card .tx{padding:12px 14px;display:flex;align-items:center;justify-content:center;text-align:center;font-weight:600;font-size:1rem}
 
   .btn{display:block;width:100%;padding:15px;border:none;border-radius:14px;background:var(--accent);color:#fff;font-size:1rem;font-weight:700;cursor:pointer;margin-top:18px}
   .btn:disabled{background:#d8d2c7;cursor:default}
@@ -94,7 +94,7 @@
     </div>
     <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для повара</button>
     <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · v5</p>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · v6</p>
   </div>
 
   <!-- Экран 2: настроение -->

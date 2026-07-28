@@ -94,7 +94,7 @@
     </div>
     <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для повара</button>
     <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · v4</p>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · v5</p>
   </div>
 
   <!-- Экран 2: настроение -->
@@ -226,7 +226,16 @@ try{
   const st = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
   if(st.selections) selections = st.selections;
   if(st.savedAt) savedAt = st.savedAt;
+  // миграция: старый формат хранил блюда на один день — такой выбор сбрасываем
+  for(const k of Object.keys(selections)){
+    if(!selections[k].days) delete selections[k];
+  }
+  if(Object.keys(selections).length===0) savedAt = null;
 }catch(e){}
+
+function isDone(s){
+  return !!(s && s.days && s.days[1] && s.days[1].dinner);
+}
 
 function persist(){
   try{ localStorage.setItem(STORE_KEY, JSON.stringify({selections, savedAt})); }catch(e){}
@@ -265,14 +274,17 @@ function renderHome(){
   const list = document.getElementById('personList');
   list.innerHTML = PEOPLE.map(p=>{
     const s = selections[p.name];
-    const st = s ? `✓ ${MOOD_NAME[s.mood]}: ${s.breakfast.n}, ${s.lunch.n}, ${s.dinner.n}` : 'Ещё не выбрано — нажми';
-    return `<div class="person ${s?'done':''}" data-action="person" data-name="${p.name}">
+    const ok = isDone(s);
+    const st = ok
+      ? `✓ ${MOOD_NAME[s.mood]} · 1-й день: ${s.days[0].breakfast.n}, ${s.days[0].lunch.n}, ${s.days[0].dinner.n} · 2-й день: ${s.days[1].breakfast.n}, ${s.days[1].lunch.n}, ${s.days[1].dinner.n}`
+      : 'Ещё не выбрано — нажми';
+    return `<div class="person ${ok?'done':''}" data-action="person" data-name="${p.name}">
       <div class="ava">${p.ava}</div>
       <div class="info"><div class="nm">${p.name}</div><div class="st">${st}</div></div>
-      <button class="pick" type="button">${s?'Изменить':'Выбрать'}</button>
+      <button class="pick" type="button">${ok?'Изменить':'Выбрать'}</button>
     </div>`;
   }).join('');
-  const count = PEOPLE.filter(p=>selections[p.name]).length;
+  const count = PEOPLE.filter(p=>isDone(selections[p.name])).length;
   document.getElementById('btnDownload').disabled = count===0;
   document.getElementById('btnReset').style.display = count ? '' : 'none';
   const info = document.getElementById('chosenInfo');
@@ -299,17 +311,18 @@ function startPerson(name){
 }
 
 function pickMood(moodId){
-  selections[cur] = {mood: moodId};
+  selections[cur] = {mood: moodId, days: [{},{}]};
   curMealIdx = 0;
   showMeal();
 }
 
 function showMeal(){
-  const meal = MEALS[curMealIdx];
+  const day = Math.floor(curMealIdx/3);
+  const meal = MEALS[curMealIdx%3];
   const mood = selections[cur].mood;
   document.getElementById('mealSteps').innerHTML =
-    Array.from({length:4},(_,i)=>`<span class="${i<=curMealIdx+1?'done':''}"></span>`).join('');
-  document.getElementById('mealTitle').textContent = `${meal.emoji} ${meal.title}`;
+    Array.from({length:7},(_,i)=>`<span class="${i<=curMealIdx+1?'done':''}"></span>`).join('');
+  document.getElementById('mealTitle').textContent = `${meal.emoji} ${meal.title} — ${day+1}-й день`;
   document.getElementById('mealSub').textContent = `${cur} · ${MOOD_NAME[mood]} настроение`;
   const cardsEl = document.getElementById('mealCards');
   cardsEl.innerHTML = MENU[mood][meal.id].map((d,i)=>`
@@ -322,10 +335,11 @@ function showMeal(){
 }
 
 function pickDish(i){
-  const meal = MEALS[curMealIdx];
+  const day = Math.floor(curMealIdx/3);
+  const meal = MEALS[curMealIdx%3];
   const mood = selections[cur].mood;
-  selections[cur][meal.id] = MENU[mood][meal.id][i];
-  if(curMealIdx < 2){ curMealIdx++; showMeal(); }
+  selections[cur].days[day][meal.id] = MENU[mood][meal.id][i];
+  if(curMealIdx < 5){ curMealIdx++; showMeal(); }
   else finishPerson();
 }
 
@@ -341,9 +355,14 @@ function finishPerson(){
   document.getElementById('doneTitle').textContent = `${cur}, отличный выбор! 🎉`;
   document.getElementById('doneSum').innerHTML = `
     <h3>${cur} <small>· ${MOOD_NAME[s.mood]} настроение</small></h3>
-    <div>🌅 Завтрак: <b>${s.breakfast.n}</b></div>
-    <div>☀️ Обед: <b>${s.lunch.n}</b></div>
-    <div>🌙 Ужин: <b>${s.dinner.n}</b></div>`;
+    <div><b>1-й день</b></div>
+    <div>🌅 Завтрак: <b>${s.days[0].breakfast.n}</b></div>
+    <div>☀️ Обед: <b>${s.days[0].lunch.n}</b></div>
+    <div>🌙 Ужин: <b>${s.days[0].dinner.n}</b></div>
+    <div style="margin-top:8px"><b>2-й день</b></div>
+    <div>🌅 Завтрак: <b>${s.days[1].breakfast.n}</b></div>
+    <div>☀️ Обед: <b>${s.days[1].lunch.n}</b></div>
+    <div>🌙 Ужин: <b>${s.days[1].dinner.n}</b></div>`;
   go('s-done');
 }
 
@@ -382,13 +401,17 @@ function downloadFile(){
   txt += '='.repeat(40) + '\n\n';
   for(const p of PEOPLE){
     const s = selections[p.name];
-    if(!s) continue;
+    if(!isDone(s)) continue;
     txt += `${p.name} (${MOOD_NAME[s.mood].toLowerCase()} настроение):\n`;
-    txt += `  • Завтрак: ${s.breakfast.n}\n`;
-    txt += `  • Обед:    ${s.lunch.n}\n`;
-    txt += `  • Ужин:    ${s.dinner.n}\n\n`;
+    txt += `  ${fmt(d)}:\n`;
+    txt += `    • Завтрак: ${s.days[0].breakfast.n}\n`;
+    txt += `    • Обед:    ${s.days[0].lunch.n}\n`;
+    txt += `    • Ужин:    ${s.days[0].dinner.n}\n`;
+    txt += `  ${fmt(d2)}:\n`;
+    txt += `    • Завтрак: ${s.days[1].breakfast.n}\n`;
+    txt += `    • Обед:    ${s.days[1].lunch.n}\n`;
+    txt += `    • Ужин:    ${s.days[1].dinner.n}\n\n`;
   }
-  txt += 'Меню действует 2 дня (готовить на оба дня одинаково).\n';
   txt += 'Все блюда — не более 10 г жира на 100 г.\n';
   const blob = new Blob([txt], {type:'text/plain;charset=utf-8'});
   const a = document.createElement('a');

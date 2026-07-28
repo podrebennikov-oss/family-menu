@@ -94,7 +94,7 @@
     </div>
     <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для Марины</button>
     <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · v11</p>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · v12</p>
   </div>
 
   <!-- Экран 2: настроение -->
@@ -885,8 +885,10 @@ async function buildMarinaPdf(){
   doc.addFont('Roboto.ttf', 'Roboto', 'normal');
   doc.setFont('Roboto');
 
-  const d = savedAt ? new Date(savedAt) : new Date();
-  const d2 = new Date(d.getTime() + 86400000);
+  // готовим со следующего дня после выбора
+  const base = savedAt ? new Date(savedAt) : new Date();
+  const d = new Date(base.getTime() + 86400000);
+  const d2 = new Date(base.getTime() + 2*86400000);
   const fmt = x => x.toLocaleDateString('ru-RU',{weekday:'long',day:'numeric',month:'long'});
   const M = 15, W = 210 - M*2;
   const ink = [45,42,38], mut = [125,118,105], accent = [224,122,63];
@@ -954,7 +956,7 @@ async function downloadFile(){
   btn.textContent = '⏳ Готовлю PDF…';
   try{
     const doc = await buildMarinaPdf();
-    const d = savedAt ? new Date(savedAt) : new Date();
+    const d = new Date((savedAt ? new Date(savedAt) : new Date()).getTime() + 86400000);
     doc.save(`Меню для Марины ${d.toISOString().slice(0,10)}.pdf`);
   }catch(e){
     alert('Не получилось собрать PDF: ' + e.message);

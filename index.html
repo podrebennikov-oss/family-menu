@@ -94,23 +94,15 @@
     </div>
     <button class="btn green" id="btnDownload" disabled data-action="download">⬇️ Скачать файл для Марины</button>
     <button class="btn ghost" id="btnReset" data-action="reset" style="display:none;color:#c0392b">🔄 Сбросить выбор (через 2 дня — выбираем заново)</button>
-    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · общий выбор на всех телефонах · v16</p>
+    <p class="note">Все блюда подобраны с жирностью не более 10 г на 100 г · 458 блюд · общий выбор на всех телефонах · v17</p>
   </div>
 
-  <!-- Экран 2: настроение -->
-  <div class="screen" id="s-mood">
-    <div class="steps"><span class="done"></span><span></span><span></span><span></span></div>
-    <h2 id="moodTitle">Какое сегодня настроение?</h2>
-    <div class="grid" id="moodGrid"></div>
-    <button class="btn ghost" data-action="go-home">← Назад</button>
-  </div>
-
-  <!-- Экран 2.5: на какие дни -->
+  <!-- Экран 2: на какие дни -->
   <div class="screen" id="s-days">
-    <div class="steps"><span class="done"></span><span class="done"></span><span></span><span></span></div>
+    <div class="steps"><span class="done"></span><span></span><span></span><span></span></div>
     <h2 id="daysTitle">На какие дни выбираем?</h2>
     <div class="person-list" id="daysList"></div>
-    <button class="btn ghost" data-action="mood-back">← Назад</button>
+    <button class="btn ghost" data-action="go-home">← Назад</button>
   </div>
 
   <!-- Экран 3-5: блюда -->
@@ -135,16 +127,18 @@
 <script>
 const IMG = f => 'img/' + f;
 
-const MOODS = [
-  {id:'meat',  name:'Мясное',    emoji:'🥩', img:'grilled-chicken-breasts-28905381261.jpg'},
-  {id:'fish',  name:'Рыбное',    emoji:'🐟', img:'uha-013.jpg'},
-  {id:'noodles', name:'Лапша и пельмени', emoji:'🍜', img:'noodles-mood.jpg'},
-  {id:'vegan', name:'Веганское', emoji:'🥦', img:'ratatouille.jpg'},
-  {id:'light', name:'Лёгкое',    emoji:'🥗', img:'fruit-salad.jpg'}
-];
-// Милана не ест рыбу — ей вместо рыбного показываем лапшу и пельмени
-function moodsFor(name){
-  return MOODS.filter(m => name === 'Милана' ? m.id !== 'fish' : m.id !== 'noodles');
+// Милана не ест рыбу и морепродукты — фильтр по названию блюда
+const FISH_RE = /рыб|лосос|тунц|тунец|треск|судак|минтай|хек|форел|дорада|сибас|камбал|тилапи|окун|скумбри|сельд|сардин|краб|кревет|кальмар|мидии|осьминог|морепродукт|паэль|уха|севиче|кеджери|онигири|смёрребрёд|том ям|устриц|анчоус|икр/i;
+
+// единая лента блюд: семейные хиты и мясное сначала, рыба в конце
+function dishesFor(name, mealId){
+  const order = ['meat','noodles','light','vegan','fish'];
+  let list = [];
+  for(const m of order){
+    if(MENU[m] && MENU[m][mealId]) list = list.concat(MENU[m][mealId]);
+  }
+  if(name === 'Милана') list = list.filter(d => !FISH_RE.test(d.n));
+  return list;
 }
 
 const MENU = {
@@ -658,7 +652,6 @@ const MEALS = [
   {id:'lunch', title:'Обед', emoji:'☀️'},
   {id:'dinner', title:'Ужин', emoji:'🌙'}
 ];
-const MOOD_NAME = Object.fromEntries(MOODS.map(m=>[m.id,m.name]));
 
 const STORE_KEY = 'family-menu-selections';
 // общее облачное хранилище — все телефоны видят один выбор
@@ -677,7 +670,7 @@ try{
   // миграция: старый формат или исчезнувшее настроение (например, «рыбное») — сбрасываем
   for(const k of Object.keys(selections)){
     const sel = selections[k];
-    if(!sel.days || !MENU[sel.mood]){ delete selections[k]; continue; }
+    if(!sel.days){ delete selections[k]; continue; }
     if(!sel.active) sel.active = [0,1];
     if(!sel.updatedAt) sel.updatedAt = savedAt || Date.now();
   }
@@ -691,7 +684,7 @@ function mergeStates(a, b){
   for(const n of names){
     const x = (a.selections||{})[n], y = (b.selections||{})[n];
     const pick = !x ? y : !y ? x : ((x.updatedAt||0) >= (y.updatedAt||0) ? x : y);
-    if(pick && (pick.updatedAt||0) > mergedResetAt && pick.days && MENU[pick.mood]) out[n] = pick;
+    if(pick && (pick.updatedAt||0) > mergedResetAt && pick.days) out[n] = pick;
   }
   const sa = [a.savedAt, b.savedAt].filter(t => t && t > mergedResetAt);
   return {selections: out, savedAt: sa.length ? Math.min(...sa) : null, resetAt: mergedResetAt};
@@ -776,7 +769,7 @@ function renderHome(){
     const s = selections[p.name];
     const ok = isDone(s);
     const st = ok
-      ? `✓ ${MOOD_NAME[s.mood]} · ` + [0,1].map(day =>
+      ? `✓ ` + [0,1].map(day =>
           `${day+1}-й день: ` + (s.days[day] && s.days[day].dinner
             ? `${s.days[day].breakfast.n}, ${s.days[day].lunch.n}, ${s.days[day].dinner.n}`
             : 'не дома')).join(' · ')
@@ -803,19 +796,6 @@ function renderHome(){
 
 function startPerson(name){
   cur = name;
-  document.getElementById('moodTitle').textContent = `${name}, какое сегодня настроение?`;
-  const g = document.getElementById('moodGrid');
-  g.innerHTML = moodsFor(name).map(m=>`
-    <div class="tile" data-action="mood" data-mood="${m.id}">
-      ${imgTag(m.img, m.emoji)}
-      <div class="lb">${m.emoji} ${m.name}</div>
-    </div>`).join('');
-  wireImages(g);
-  go('s-mood');
-}
-
-function pickMood(moodId){
-  selections[cur] = {mood: moodId, days: [null,null], active: null};
   showDays();
 }
 
@@ -839,10 +819,10 @@ function showDays(){
 }
 
 function pickDays(mode){
-  const s = selections[cur];
-  s.active = mode==='both' ? [0,1] : mode==='d1' ? [0] : [1];
-  s.days = [null,null];
-  for(const i of s.active) s.days[i] = {};
+  const active = mode==='both' ? [0,1] : mode==='d1' ? [0] : [1];
+  const days = [null,null];
+  for(const i of active) days[i] = {};
+  selections[cur] = {days, active};
   curMealIdx = 0;
   showMeal();
 }
@@ -854,12 +834,11 @@ function showMeal(keepOffset){
   const act = selections[cur].active;
   const day = act[Math.floor(curMealIdx/3)];
   const meal = MEALS[curMealIdx%3];
-  const mood = selections[cur].mood;
   document.getElementById('mealSteps').innerHTML =
-    Array.from({length: 2 + act.length*3},(_,i)=>`<span class="${i<=curMealIdx+2?'done':''}"></span>`).join('');
+    Array.from({length: 1 + act.length*3},(_,i)=>`<span class="${i<=curMealIdx+1?'done':''}"></span>`).join('');
   document.getElementById('mealTitle').textContent = `${meal.emoji} ${meal.title} — ${day+1}-й день`;
-  document.getElementById('mealSub').textContent = `${cur} · ${MOOD_NAME[mood]} настроение`;
-  const list = MENU[mood][meal.id];
+  document.getElementById('mealSub').textContent = `${cur} · ${dayLabel(day)}`;
+  const list = dishesFor(cur, meal.id);
   const cardsEl = document.getElementById('mealCards');
   cardsEl.innerHTML = [0,1,2].map(k=>{
     const d = list[(mealOffset+k) % list.length];
@@ -874,7 +853,7 @@ function showMeal(keepOffset){
 
 function rerollMeal(){
   const meal = MEALS[curMealIdx%3];
-  const list = MENU[selections[cur].mood][meal.id];
+  const list = dishesFor(cur, meal.id);
   mealOffset = (mealOffset + 3) % list.length;
   showMeal(true);
   window.scrollTo(0,0);
@@ -884,8 +863,7 @@ function pickDish(i){
   const act = selections[cur].active;
   const day = act[Math.floor(curMealIdx/3)];
   const meal = MEALS[curMealIdx%3];
-  const mood = selections[cur].mood;
-  selections[cur].days[day][meal.id] = MENU[mood][meal.id][i];
+  selections[cur].days[day][meal.id] = dishesFor(cur, meal.id)[i];
   if(curMealIdx < act.length*3 - 1){ curMealIdx++; showMeal(); }
   else finishPerson();
 }
@@ -902,7 +880,7 @@ function finishPerson(){
   persist();
   pullSync().then(pushSync);
   document.getElementById('doneTitle').textContent = `${cur}, отличный выбор! 🎉`;
-  let sumHtml = `<h3>${cur} <small>· ${MOOD_NAME[s.mood]} настроение</small></h3>`;
+  let sumHtml = `<h3>${cur}</h3>`;
   for(let day = 0; day < 2; day++){
     sumHtml += `<div style="margin-top:${day?8:0}px"><b>${day+1}-й день · ${dayLabel(day)}</b></div>`;
     if(s.days[day] && s.days[day].dinner){
@@ -1010,7 +988,7 @@ async function buildMarinaPdf(){
     ensure(16 + ROW);
     y += 11;
     doc.setFontSize(13.5); doc.setTextColor(...ink);
-    doc.text(`${p.name} — настроение «${MOOD_NAME[s.mood]}»`, M, y);
+    doc.text(p.name, M, y);
     y += 1;
     for(let day = 0; day < 2; day++){
       ensure(9 + ROW);
@@ -1114,9 +1092,7 @@ document.addEventListener('click', function(ev){
   if(!el) return;
   const a = el.dataset.action;
   if(a==='person') startPerson(el.dataset.name);
-  else if(a==='mood') pickMood(el.dataset.mood);
   else if(a==='days') pickDays(el.dataset.days);
-  else if(a==='mood-back') startPerson(cur);
   else if(a==='dish') pickDish(parseInt(el.dataset.i,10));
   else if(a==='go-home') go('s-home');
   else if(a==='meal-back') mealBack();
